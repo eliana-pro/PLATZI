@@ -1,0 +1,4 @@
+#pip install -r requirements.txt
+
+python ==3.10.6
+django ==4.1.2

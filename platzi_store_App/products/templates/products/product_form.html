@@ -1,0 +1,336 @@
+{% extends 'products/base.html' %}
+
+{% block title %}{{ action }} Producto - Platzi Store{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-{% if action == 'Editar' %}edit{% else %}plus-circle{% endif %}"></i> {{ action }} Producto</h1>
+    <p class="lead">{% if action == 'Editar' %}Modifica los datos del producto{% else %}Agrega un nuevo producto al catálogo{% endif %}</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="mb-3">
+            <a href="{% if product %}{% url 'products:product_detail' product.id %}{% else %}{% url 'products:products' %}{% endif %}" class="btn btn-outline-light">
+                <i class="fas fa-arrow-left"></i> {% if product %}Volver al producto{% else %}Volver a productos{% endif %}
+            </a>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-{% if action == 'Editar' %}edit{% else %}plus-circle{% endif %}"></i>
+                    {{ action }} Producto
+                </h4>
+            </div>
+            
+            <div class="card-body">
+                <form method="post" id="productForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <!-- Título -->
+                        <div class="col-md-12 mb-3">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">
+                                <i class="fas fa-tag"></i> {{ form.title.label }}
+                            </label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.title.errors %}
+                                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Precio -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.price.id_for_label }}" class="form-label">
+                                <i class="fas fa-dollar-sign"></i> {{ form.price.label }}
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.price }}
+                            </div>
+                            {% if form.price.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.price.errors %}
+                                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Categoría -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.category_id.id_for_label }}" class="form-label">
+                                <i class="fas fa-folder"></i> {{ form.category_id.label }}
+                            </label>
+                            {{ form.category_id }}
+                            {% if form.category_id.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.category_id.errors %}
+                                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Descripción -->
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">
+                            <i class="fas fa-align-left"></i> {{ form.description.label }}
+                        </label>
+                        {{ form.description }}
+                        <div class="form-text">
+                            <small class="text-muted">
+                                <span id="charCount">0</span> caracteres
+                            </small>
+                        </div>
+                        {% if form.description.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.description.errors %}
+                                    <i class="fas fa-exclamation-circle"></i> {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- URL de imagen -->
+                    <div class="mb-4">
+                        <label for="{{ form.image_url.id_for_label }}" class="form-label">
+                            <i class="fas fa-image"></i> {{ form.image_url.label }}
+                        </label>
+                        {{ form.image_url }}
+                        <div class="form-text">
+                            <small class="text-muted">
+                                Si no proporcionas una imagen, se usará una imagen por defecto
+                            </small>
+                        </div>
+                        {% if form.image_url.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.image_url.errors %}
+                                    <i class="fas fa-exclamation-circle"></i> {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Preview de imagen -->
+                        <div id="imagePreview" class="mt-3" style="display: none;">
+                            <div class="card" style="max-width: 300px;">
+                                <img id="previewImg" src="" class="card-img-top" style="height: 200px; object-fit: cover;" alt="Vista previa">
+                                <div class="card-body p-2">
+                                    <small class="text-muted">Vista previa de la imagen</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% if product %}{% url 'products:product_detail' product.id %}{% else %}{% url 'products:products' %}{% endif %}" 
+                            class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-{% if action == 'Editar' %}save{% else %}plus{% endif %}"></i>
+                            <span id="btnText">{{ action }} Producto</span>
+                            <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vista previa del producto (solo para edición) -->
+{% if product and action == 'Editar' %}
+<div class="row justify-content-center mt-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-eye"></i> Producto Actual</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        {% if product.images and product.images.0 %}
+                            <img src="{{ product.images.0 }}" class="img-fluid rounded" style="max-height: 200px;" alt="{{ product.title }}">
+                        {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center rounded" style="height: 200px;">
+                                <i class="fas fa-image fa-3x text-muted"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                        <h5>{{ product.title }}</h5>
+                        <p class="text-primary h4">${{ product.price }}</p>
+                        <p class="text-muted">{{ product.description|truncatechars:150 }}</p>
+                        {% if product.category %}
+                            <span class="badge bg-secondary">{{ product.category.name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Contador de caracteres para la descripción
+    const descriptionField = document.getElementById('{{ form.description.id_for_label }}');
+    const charCount = document.getElementById('charCount');
+    
+    function updateCharCount() {
+        const count = descriptionField.value.length;
+        charCount.textContent = count;
+        
+        // Cambiar color según la longitud
+        if (count > 500) {
+            charCount.className = 'text-warning';
+        } else if (count > 1000) {
+            charCount.className = 'text-danger';
+        } else {
+            charCount.className = 'text-muted';
+        }
+    }
+    
+    descriptionField.addEventListener('input', updateCharCount);
+    updateCharCount(); // Llamar al cargar la página
+    
+    // Preview de imagen
+    const imageUrlField = document.getElementById('{{ form.image_url.id_for_label }}');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    
+    function updateImagePreview() {
+        const url = imageUrlField.value.trim();
+        if (url && isValidUrl(url)) {
+            previewImg.src = url;
+            imagePreview.style.display = 'block';
+            
+            // Manejar errores de carga de imagen
+            previewImg.onerror = function() {
+                imagePreview.style.display = 'none';
+            };
+        } else {
+            imagePreview.style.display = 'none';
+        }
+    }
+    
+    function isValidUrl(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+    
+    imageUrlField.addEventListener('input', updateImagePreview);
+    imageUrlField.addEventListener('blur', updateImagePreview);
+    updateImagePreview(); // Llamar al cargar la página
+    
+    // Manejo del envío del formulario
+    const form = document.getElementById('productForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
+    
+    form.addEventListener('submit', function(e) {
+        // Mostrar spinner y deshabilitar botón
+        submitBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnSpinner.classList.remove('d-none');
+        
+        // Validación adicional del lado del cliente
+        const title = document.getElementById('{{ form.title.id_for_label }}').value.trim();
+        const price = parseFloat(document.getElementById('{{ form.price.id_for_label }}').value);
+        const description = document.getElementById('{{ form.description.id_for_label }}').value.trim();
+        
+        let hasErrors = false;
+        
+        if (title.length < 3) {
+            showFieldError('{{ form.title.id_for_label }}', 'El título debe tener al menos 3 caracteres');
+            hasErrors = true;
+        }
+        
+        if (price <= 0 || isNaN(price)) {
+            showFieldError('{{ form.price.id_for_label }}', 'El precio debe ser un número mayor a 0');
+            hasErrors = true;
+        }
+        
+        if (description.length < 10) {
+            showFieldError('{{ form.description.id_for_label }}', 'La descripción debe tener al menos 10 caracteres');
+            hasErrors = true;
+        }
+        
+        if (hasErrors) {
+            e.preventDefault();
+            // Restaurar botón
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnSpinner.classList.add('d-none');
+        }
+    });
+    
+    function showFieldError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const existingError = field.parentNode.querySelector('.client-error');
+        
+        // Remover error existente
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        // Agregar nuevo error
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'text-danger small mt-1 client-error';
+        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+        field.parentNode.appendChild(errorDiv);
+        
+        // Agregar clase de error al campo
+        field.classList.add('is-invalid');
+        
+        // Remover error después de que el usuario corrija el campo
+        field.addEventListener('input', function() {
+            field.classList.remove('is-invalid');
+            if (existingError) {
+                existingError.remove();
+            }
+        }, { once: true });
+    }
+});
+
+// Confirmación antes de cancelar si hay cambios
+window.addEventListener('beforeunload', function(e) {
+    const form = document.getElementById('productForm');
+    const formData = new FormData(form);
+    let hasChanges = false;
+    
+    // Verificar si hay cambios en el formulario
+    for (let [key, value] in formData.entries()) {
+        if (value.trim() !== '') {
+            hasChanges = true;
+            break;
+        }
+    }
+    
+    if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+</script>
+{% endblock %}

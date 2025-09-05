@@ -1,0 +1,438 @@
+{% extends 'products/base.html' %}
+
+{% block title %}Productos - Platzi Store{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-shopping-cart"></i> Tienda Platzi</h1>
+    <p class="lead">Explora nuestra colección de productos increíbles</p>
+</div>
+
+<!-- Dashboard Stats -->
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-center" style="background: linear-gradient(45deg, rgb(54 79 209) 0%, rgb(80 121 200) 46%, rgb(112 240 255) 100%);">
+            <div class="card-body text-white">
+                <h3 class="mb-0">{{ total_products }}</h3>
+                <p class="mb-0">Productos Totales</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-center" style="background: linear-gradient(45deg, rgb(7 12 41) 0%, rgb(38 92 195) 46%, rgb(61 120 127) 100%);">
+            <div class="card-body text-white">
+                <h3 class="mb-0">{{ total_categories|default:0 }}</h3>
+                <p class="mb-0">Categorías</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-center" style="background: linear-gradient(45deg, #93abfbff 0%, #578ef5ff 100%);">
+            <div class="card-body text-white">
+                <h3 class="mb-0">1</h3>
+                <p class="mb-0">Página Actual</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-center" style="background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="card-body text-white">
+                <h3 class="mb-0">{{ page_obj.paginator.num_pages|default:1 }}</h3>
+                <p class="mb-0">Total Páginas</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros y búsqueda -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-search"></i> Buscar Productos
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{% url 'products:products' %}" id="filterForm">
+            <div class="row">
+                <!-- Búsqueda por título -->
+                <div class="col-md-6 mb-3">
+                    <label for="search" class="form-label">Buscar por título...</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" 
+                                class="form-control" 
+                                name="search" 
+                                id="search"
+                                value="{{ request.GET.search }}" 
+                                placeholder="Buscar productos...">
+                    </div>
+                </div>
+                
+                <!-- Filtro por categoría -->
+                <div class="col-md-3 mb-3">
+                    <label for="category" class="form-label">Categoría</label>
+                    <select name="category" id="category" class="form-select">
+                        <option value="">Todas las categorías</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Filtro por precio -->
+                <div class="col-md-3 mb-3">
+                    <label for="price_range" class="form-label">Rango de precio</label>
+                    <select name="price_range" id="price_range" class="form-select">
+                        <option value="">Todos los precios</option>
+                        <option value="0-50" {% if request.GET.price_range == "0-50" %}selected{% endif %}>$0 - $50</option>
+                        <option value="50-100" {% if request.GET.price_range == "50-100" %}selected{% endif %}>$50 - $100</option>
+                        <option value="100-500" {% if request.GET.price_range == "100-500" %}selected{% endif %}>$100 - $500</option>
+                        <option value="500+" {% if request.GET.price_range == "500+" %}selected{% endif %}>$500+</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <a href="{% url 'products:products' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-times"></i> Limpiar filtros
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resultados y ordenamiento -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h4 class="text-white">
+            Productos 
+            {% if request.GET.search %}
+                - Búsqueda: "{{ request.GET.search }}"
+            {% endif %}
+            {% if filtered_count %}
+                ({{ filtered_count }} encontrados)
+            {% endif %}
+        </h4>
+    </div>
+    <div class="col-md-6 text-end">
+        <div class="d-inline-flex align-items-center me-3">
+            <label class="text-white me-2">Ordenar por:</label>
+            <select class="form-select form-select-sm" style="width: auto;" onchange="sortProducts(this.value)">
+                <option value="default" {% if request.GET.sort == "default" %}selected{% endif %}>Por defecto</option>
+                <option value="price_asc" {% if request.GET.sort == "price_asc" %}selected{% endif %}>Precio (menor a mayor)</option>
+                <option value="price_desc" {% if request.GET.sort == "price_desc" %}selected{% endif %}>Precio (mayor a menor)</option>
+                <option value="name_asc" {% if request.GET.sort == "name_asc" %}selected{% endif %}>Nombre (A-Z)</option>
+                <option value="name_desc" {% if request.GET.sort == "name_desc" %}selected{% endif %}>Nombre (Z-A)</option>
+            </select>
+        </div>
+        <a href="{% url 'products:add_product' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nuevo Producto
+        </a>
+    </div>
+</div>
+
+{% if page_obj %}
+    <div class="row">
+        {% for product in page_obj %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card h-100" style="transition: all 0.3s ease;">
+                    <!-- Checkbox para selección múltiple -->
+                    <div class="position-absolute top-0 start-0 p-2">
+                        <input type="checkbox" class="form-check-input product-checkbox" value="{{ product.id }}">
+                    </div>
+                    
+                    {% if product.images and product.images.0 %}
+                        <img src="{{ product.images.0 }}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="{{ product.title }}" loading="lazy">
+                    {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="fas fa-image fa-3x text-muted"></i>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Badge de categoría -->
+                    {% if product.category %}
+                        <div class="position-absolute top-0 end-0 p-2">
+                            <span class="badge" style="background: linear-gradient(45deg, #667eea, #764ba2);">
+                                {{ product.category.name }}
+                            </span>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ product.title|truncatechars:50 }}</h5>
+                        <p class="card-text text-muted flex-grow-1">
+                            {{ product.description|truncatechars:100 }}
+                        </p>
+                        
+                        <div class="mt-auto">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="text-primary mb-0">${{ product.price }}</h4>
+                                <small class="text-muted">ID: {{ product.id }}</small>
+                            </div>
+                            
+                            <div class="btn-group w-100" role="group">
+                                <a href="{% url 'products:product_detail' product.id %}" class="btn btn-outline-primary btn-sm" title="Ver detalles">
+                                    <i class="fas fa-eye"></i> Ver
+                                </a>
+                                <a href="{% url 'products:edit_product' product.id %}" class="btn btn-outline-warning btn-sm" title="Editar producto">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteProduct({{ product.id }}, '{{ product.title }}')" title="Eliminar producto">
+                                    <i class="fas fa-trash"></i> Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Paginación mejorada -->
+    {% if page_obj.has_other_pages %}
+        <nav aria-label="Navegación de productos">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.price_range %}price_range={{ request.GET.price_range }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page=1" aria-label="Primera">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.price_range %}price_range={{ request.GET.price_range }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Anterior">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+
+                <!-- Números de página -->
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.price_range %}price_range={{ request.GET.price_range }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.price_range %}price_range={{ request.GET.price_range }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Siguiente">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}{% if request.GET.category %}category={{ request.GET.category }}&{% endif %}{% if request.GET.price_range %}price_range={{ request.GET.price_range }}&{% endif %}{% if request.GET.sort %}sort={{ request.GET.sort }}&{% endif %}page={{ page_obj.paginator.num_pages }}" aria-label="Última">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+            
+            <div class="text-center text-white mt-2">
+                <small>
+                    Mostrando {{ page_obj.start_index }} - {{ page_obj.end_index }} de {{ page_obj.paginator.count }} productos
+                </small>
+            </div>
+        </nav>
+    {% endif %}
+
+{% else %}
+    <div class="text-center py-5">
+        <div class="card">
+            <div class="card-body">
+                <i class="fas fa-search fa-5x text-muted mb-3"></i>
+                <h3>No se encontraron productos</h3>
+                {% if request.GET.search or request.GET.category or request.GET.price_range %}
+                    <p class="text-muted">No hay productos que coincidan con los filtros seleccionados.</p>
+                    <a href="{% url 'products:products' %}" class="btn btn-primary me-2">
+                        <i class="fas fa-times"></i> Limpiar filtros
+                    </a>
+                {% else %}
+                    <p class="text-muted">¡Comienza agregando tu primer producto!</p>
+                {% endif %}
+                <a href="{% url 'products:add_product' %}" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Agregar Producto
+                </a>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Modal para acciones masivas -->
+<div class="modal fade" id="bulkActionsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Acciones Masivas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Selecciona productos marcando las casillas y elige una acción:</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-danger" onclick="bulkDelete()" data-bs-dismiss="modal">
+                        <i class="fas fa-trash"></i> Eliminar seleccionados
+                    </button>
+                    <button class="btn btn-info" onclick="bulkExport()" data-bs-dismiss="modal">
+                        <i class="fas fa-download"></i> Exportar seleccionados
+                    </button>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    <span id="selectedCount">0</span> productos seleccionados
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Función para ordenar productos
+function sortProducts(sortBy) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('sort', sortBy);
+    window.location.href = url.toString();
+}
+
+// Función para eliminar producto individual
+function deleteProduct(productId, productTitle) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar el producto "${productTitle}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`${productId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire(
+                        '¡Eliminado!',
+                        data.message,
+                        'success'
+                    ).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire(
+                        'Error',
+                        data.message,
+                        'error'
+                    );
+                }
+            })
+            .catch(error => {
+                Swal.fire(
+                    'Error',
+                    'Ocurrió un error al eliminar el producto',
+                    'error'
+                );
+            });
+        }
+    });
+}
+
+// Funciones para selección múltiple
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.product-checkbox:checked').length;
+        selectedCount.textContent = selected;
+    }
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+    });
+});
+
+// Función para eliminar productos seleccionados
+function bulkDelete() {
+    const selected = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.value);
+    
+    if (selected.length === 0) {
+        Swal.fire('Aviso', 'No hay productos seleccionados', 'warning');
+        return;
+    }
+    
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar ${selected.length} productos seleccionados?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar todos',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire('Funcionalidad en desarrollo', 'Esta característica estará disponible pronto', 'info');
+        }
+    });
+}
+
+// Función para exportar productos seleccionados
+function bulkExport() {
+    const selected = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.value);
+    
+    if (selected.length === 0) {
+        Swal.fire('Aviso', 'No hay productos seleccionados', 'warning');
+        return;
+    }
+    
+    Swal.fire('Funcionalidad en desarrollo', 'La exportación estará disponible pronto', 'info');
+}
+
+// Función para obtener cookie CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Efecto hover para las cards
+document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-5px)';
+        this.style.boxShadow = '0 15px 35px rgba(0, 0, 0, 0.15)';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+        this.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.12)';
+    });
+});
+</script>
+{% endblock %}
